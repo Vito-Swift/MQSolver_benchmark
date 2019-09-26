@@ -312,7 +312,7 @@ void mqLoop() {
         binKey++;
 
         if (++loopNum % 0x4000000 == 0)
-            std::cout << "\t" << currentDateTime() << "\t[info]\tprocess: " << (uint64_t) (loopNum / 0x10000000)
+            std::cout << "\t" << currentDateTime() << "\t[info]\tprocess: " << (uint64_t) (loopNum / 0x4000000)
                       << "/16834" << std::endl;
     }
 }
