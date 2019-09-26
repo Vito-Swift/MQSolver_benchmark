@@ -64,10 +64,8 @@ const __m512i mm512_const_setone_epi16 = _mm512_set1_epi16(1);
 inline __m512i avx512_lzcnt_epi16(const __m512i &v) {
     __m512i hut = _mm512_and_si512(v, mm512_const_hut_mask);
     __m512i lut = _mm512_sllv_epi32(v, mm512_const_lut_offset);
-    __mmask16 hut_mask = ~_mm512_cmpeq_epi32_mask(hut, mm512_const_zero);
-    __mmask16 lut_mask = ~_mm512_cmpeq_epi32_mask(lut, mm512_const_zero);
-    __m512i lzcnt_hut = _mm512_maskz_lzcnt_epi32(hut_mask, hut);
-    __m512i lzcnt_lut = _mm512_maskz_lzcnt_epi32(lut_mask, lut);
+    __m512i lzcnt_hut = _mm512_lzcnt_epi32(hut);
+    __m512i lzcnt_lut = _mm512_lzcnt_epi32(lut);
     __m512i ret_lzcnt_hut = _mm512_sllv_epi32(lzcnt_hut, mm512_const_lut_offset);
     return _mm512_or_epi32(ret_lzcnt_hut, lzcnt_lut);
 }
@@ -271,24 +269,25 @@ void mqLoop() {
         checkConsist(Val, mask);
 
         // extract solution
-        for (uint32_t varIndex = 0; varIndex < ITER_VARNUM; varIndex++)
-            if ((grayCodeKey >> varIndex) & 1)
-                sols[varIndex] = _mm512_or_si512(sols[varIndex], _mm512_slli_epi16(_mm512_set1_epi16(1), solOffset));
-        extractSolution(Val, sols + RES_VARNUM, solOffset);
-        solOffset++;
-
-        // check result
-        if (solOffset == 16) {
-            __m512i flag = validateResult(sols, VerifyPoly);
-            __mmask16 flag_mask = _mm512_cmpeq_epi32_mask(flag, mm512_const_fullone);
-            if (flag_mask != 0xffff)
-                std::cout << "\t" << currentDateTime() << "\t[info]\tone solution is found" << std::endl;
-            for (uint i = 0; i < ITER_VARNUM; i++)
-                sols[i] = mm512_const_zero;
-            for (uint i = RES_VARNUM; i < N; i++)
-                sols[i] = mm512_const_zero;
-            solOffset = 0;
-        }
+        // TODO: not need to extract all the solutions
+//        for (uint32_t varIndex = 0; varIndex < ITER_VARNUM; varIndex++)
+//            if ((grayCodeKey >> varIndex) & 1)
+//                sols[varIndex] = _mm512_or_si512(sols[varIndex], _mm512_slli_epi16(_mm512_set1_epi16(1), solOffset));
+//        extractSolution(Val, sols + RES_VARNUM, solOffset);
+//        solOffset++;
+//
+//        // check result
+//        if (solOffset == 16) {
+//            __m512i flag = validateResult(sols, VerifyPoly);
+//            __mmask16 flag_mask = _mm512_cmpeq_epi32_mask(flag, mm512_const_fullone);
+//            if (flag_mask != 0xffff)
+//                std::cout << "\t" << currentDateTime() << "\t[info]\tone solution is found" << std::endl;
+//            for (uint i = 0; i < ITER_VARNUM; i++)
+//                sols[i] = mm512_const_zero;
+//            for (uint i = RES_VARNUM; i < N; i++)
+//                sols[i] = mm512_const_zero;
+//            solOffset = 0;
+//        }
 
         // update value
         uint64_t los = __builtin_ffsl(((uint64_t) binKey >> 1) ^ binKey ^ grayCodeKey) - 1;
@@ -307,6 +306,10 @@ void mqLoop() {
         // update gray code and bin key
         grayCodeKey = (binKey >> 1) ^ binKey;
         binKey++;
+
+        if (++loopNum % 0x10000000 == 0)
+            std::cout << "\t" << currentDateTime() << "\t[info]\tprocess: " << (uint64_t) (loopNum / 0x10000000)
+                      << "/4096" << std::endl;
     }
 }
 
